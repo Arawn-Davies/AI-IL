@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>AIL-Studio</AssemblyName>
+    <RootNamespace>AIL_Studio</RootNamespace>
+    <AssemblyTitle>AIL Studio</AssemblyTitle>
+    <AssemblyDescription>IDE for Artemis Intermediate Language</AssemblyDescription>
+    <Company>Arawn-Davies</Company>
+    <Product>AIL Studio</Product>
+    <Copyright>Copyright © 2024</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Artemis-VM\Artemis_IL.csproj" />
+  </ItemGroup>
+
+</Project>
