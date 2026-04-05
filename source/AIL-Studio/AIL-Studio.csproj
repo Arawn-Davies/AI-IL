@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AssemblyName>AIL-Studio</AssemblyName>
     <RootNamespace>AIL_Studio</RootNamespace>
     <AssemblyTitle>AIL Studio</AssemblyTitle>

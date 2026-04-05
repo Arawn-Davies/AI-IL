@@ -34,7 +34,7 @@ namespace AIL_Studio.Decompiler
             sb.AppendLine("; Decompiled by AIL Studio");
             sb.AppendLine();
 
-            for (int i = 0; i + 5 < code.Length; i += 6)
+            for (int i = 0; i + 6 <= code.Length; i += 6)
             {
                 byte b0     = code[i];
                 byte opcode = (byte)((b0 >> 2) & 0x3F);

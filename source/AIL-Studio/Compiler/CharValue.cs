@@ -18,7 +18,7 @@ namespace AIL_Studio.Compiler
         public static byte Parse(string token)
         {
             string inner = token.Trim('\'');
-            if (inner.StartsWith('\\'))
+            if (inner.Length > 0 && inner[0] == '\\')
             {
                 return inner[1] switch
                 {

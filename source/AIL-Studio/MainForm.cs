@@ -114,6 +114,7 @@ namespace AIL_Studio
             var build = AddMenu(_menu, "&Build");
             AddItem(build, "&Compile",     "F5",     (_, _) => Compile());
             AddItem(build, "Compile && &Run", "F6",  (_, _) => CompileAndRun());
+            AddItem(build, "&Debug",       "F7",     (_, _) => OpenDebugger());
             build.DropDownItems.Add(new ToolStripSeparator());
             AddItem(build, "&Decompile .ila…", "",   (_, _) => OpenAndDecompile());
 
@@ -183,6 +184,8 @@ namespace AIL_Studio
             AddTool("Run",      "Compile and run (F6)",      () => CompileAndRun());
             _toolbar.Items.Add(new ToolStripSeparator());
             AddTool("Decompile", "Open & decompile a .ila binary", () => OpenAndDecompile());
+            _toolbar.Items.Add(new ToolStripSeparator());
+            AddTool("Debug",    "Compile and debug step-by-step (F7)", () => OpenDebugger());
             _toolbar.Items.Add(new ToolStripSeparator());
             AddTool("About",    "About AIL Studio",          () => ShowAbout());
 
@@ -340,6 +343,7 @@ namespace AIL_Studio
                 case Keys.Control | Keys.S: Save();   return true;
                 case Keys.F5: Compile();              return true;
                 case Keys.F6: CompileAndRun();        return true;
+                case Keys.F7: OpenDebugger();         return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
         }
@@ -517,6 +521,28 @@ namespace AIL_Studio
                         AppendOutput($"\n✗ Runtime error: {ex.Message}\n", COutputError)));
                 }
             });
+        }
+
+        private void OpenDebugger()
+        {
+            ClearOutput();
+            AppendOutput("── Debug ────────────────────────────\n", COutputInfo);
+            try
+            {
+                var c = new Compiler.Compiler(_editor.Text);
+                byte[] code = c.Compile();
+                AppendOutput($"✓ Compiled — {code.Length / 6} instruction(s).\n", COutputSuccess);
+                var dbg = new DebugForm(code);
+                dbg.Show(this);
+            }
+            catch (Compiler.BuildException ex)
+            {
+                AppendOutput($"✗ Error on line {ex.SrcLineNumber}: {ex.Message}\n", COutputError);
+            }
+            catch (Exception ex)
+            {
+                AppendOutput($"✗ {ex.Message}\n", COutputError);
+            }
         }
 
         private void OpenAndDecompile()
@@ -772,7 +798,7 @@ namespace AIL_Studio
 
     internal sealed class CodeEditor : RichTextBox
     {
-        public new event EventHandler? Scroll;
+        public event EventHandler? Scroll;
 
         protected override void WndProc(ref Message m)
         {

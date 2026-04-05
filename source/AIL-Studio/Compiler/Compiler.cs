@@ -157,17 +157,21 @@ namespace AIL_Studio.Compiler
         /// <summary>Removes everything from the first comment marker to end-of-line.</summary>
         private static string StripComment(string line)
         {
-            // Walk character by character to skip char literals before checking ; or //
             bool inChar = false;
             for (int i = 0; i < line.Length; i++)
             {
                 char c = line[i];
-                if (c == '\'' && !inChar) { inChar = true; continue; }
-                if (c == '\'' && inChar)  { inChar = false; continue; }
                 if (!inChar)
                 {
+                    if (c == '\'') { inChar = true; continue; }
                     if (c == ';') return line[..i];
                     if (c == '/' && i + 1 < line.Length && line[i + 1] == '/') return line[..i];
+                }
+                else
+                {
+                    // Inside a char literal: skip an escaped character then wait for closing '
+                    if (c == '\\') { i++; continue; }  // skip next char
+                    if (c == '\'') inChar = false;
                 }
             }
             return line;
