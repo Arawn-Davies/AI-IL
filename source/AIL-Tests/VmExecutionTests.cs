@@ -176,8 +176,9 @@ KEI 0x02
         }
 
         /// <summary>
-        /// TEQ + JMT: when AL != AH (values differ) JMT does NOT fire (it only fires on
-        /// equality), so execution falls through to the MOV that sets AL to 0xFF.
+        /// TEQ + JMT: when AL != AH (values differ) TEQ sets the condition flag to false,
+        /// so JMT does NOT fire (JMT fires only when the flag is true).  Execution falls
+        /// through to the MOV that sets AL to 0xFF.
         /// </summary>
         [Fact]
         public void ConditionalJump_FallsThroughWhenNotEqual()
