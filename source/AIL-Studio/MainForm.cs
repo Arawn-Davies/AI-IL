@@ -76,10 +76,10 @@ namespace AIL_Studio
             ForeColor       = CDefault;
             Font            = new Font("Segoe UI", 9f, FontStyle.Regular);
 
-            BuildMenu();
-            BuildToolbar();
             BuildEditor();
             BuildStatusBar();
+            BuildMenu();
+            BuildToolbar();
             BuildHighlightTimer();
 
             ResumeLayout(false);
@@ -174,35 +174,54 @@ namespace AIL_Studio
                 BackColor = CToolbar,
                 GripStyle = ToolStripGripStyle.Hidden,
                 Padding   = new Padding(4, 2, 0, 2),
+                ImageScalingSize = new Size(16, 16),
             };
 
-            AddTool("New",      "New file (Ctrl+N)",         () => New());
-            AddTool("Open",     "Open source file (Ctrl+O)", () => Open());
-            AddTool("Save",     "Save file (Ctrl+S)",        () => Save());
+            AddTool(CreateIcon("📄"), "New file (Ctrl+N)",         () => New());
+            AddTool(CreateIcon("📁"), "Open source file (Ctrl+O)", () => Open());
+            AddTool(CreateIcon("💾"), "Save file (Ctrl+S)",        () => Save());
             _toolbar.Items.Add(new ToolStripSeparator());
-            AddTool("Compile",  "Compile to .ila (F5)",      () => Compile());
-            AddTool("Run",      "Compile and run (F6)",      () => CompileAndRun());
+            AddTool(CreateIcon("⚙️"), "Compile to .ila (F5)",      () => Compile());
+            AddTool(CreateIcon("▶️"), "Compile and run (F6)",      () => CompileAndRun());
             _toolbar.Items.Add(new ToolStripSeparator());
-            AddTool("Decompile", "Open & decompile a .ila binary", () => OpenAndDecompile());
+            AddTool(CreateIcon("📋"), "Open & decompile a .ila binary", () => OpenAndDecompile());
             _toolbar.Items.Add(new ToolStripSeparator());
-            AddTool("Debug",    "Compile and debug step-by-step (F7)", () => OpenDebugger());
+            AddTool(CreateIcon("🐛"), "Compile and debug step-by-step (F7)", () => OpenDebugger());
             _toolbar.Items.Add(new ToolStripSeparator());
-            AddTool("About",    "About AIL Studio",          () => ShowAbout());
+            AddTool(CreateIcon("ℹ️"), "About AIL Studio",          () => ShowAbout());
 
             Controls.Add(_toolbar);
         }
 
-        private void AddTool(string text, string tooltip, Action action)
+        private static Bitmap CreateIcon(string emoji)
         {
-            var btn = new ToolStripButton(text)
+            var bmp = new Bitmap(16, 16);
+            using (var g = Graphics.FromImage(bmp))
             {
+                g.Clear(Color.Transparent);
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                using (var font = new Font("Segoe UI Emoji", 11f, FontStyle.Regular))
+                {
+                    var size = g.MeasureString(emoji, font);
+                    var x = (16 - size.Width) / 2;
+                    var y = (16 - size.Height) / 2;
+                    g.DrawString(emoji, font, Brushes.White, x, y);
+                }
+            }
+            return bmp;
+        }
+
+        private void AddTool(Bitmap icon, string tooltip, Action action)
+        {
+            var btn = new ToolStripButton
+            {
+                Image           = icon,
                 ToolTipText     = tooltip,
-                DisplayStyle    = ToolStripItemDisplayStyle.Text,
-                ForeColor       = Color.FromArgb(0xCC, 0xCC, 0xCC),
+                DisplayStyle    = ToolStripItemDisplayStyle.Image,
                 BackColor       = CToolbar,
-                Padding         = new Padding(6, 1, 6, 1),
-                Font            = new Font("Segoe UI", 9f),
-                AutoSize        = true,
+                AutoSize        = false,
+                Width           = 24,
+                Height          = 24,
             };
             btn.Click += (_, _) => action();
             _toolbar.Items.Add(btn);

@@ -414,9 +414,9 @@ namespace AIL_Studio
             ForeColor       = CDefault;
             Font            = new Font("Segoe UI", 9f);
 
-            BuildToolbar();
             BuildPanels();
             BuildStatusBar();
+            BuildToolbar();
         }
 
         private void BuildToolbar()
@@ -501,18 +501,15 @@ namespace AIL_Studio
 
         private void BuildPanels()
         {
-            // Outer: vertical split — registers left | memory+output right
-            var outer = new SplitContainer
+            // Simple panel layout - no SplitContainers!
+            // Left panel: Registers (fixed width)
+            var leftPanel = new Panel
             {
-                Dock             = DockStyle.Fill,
-                Orientation      = Orientation.Vertical,
-                SplitterWidth    = 4,
-                BackColor        = Color.FromArgb(0x3C, 0x3C, 0x3C),
-                Panel1MinSize    = 180,
-                Panel2MinSize    = 300,
+                Dock      = DockStyle.Left,
+                Width     = 240,
+                BackColor = CSide,
             };
 
-            // ── Left: registers ───────────────────────────────────────────────
             _regBox = new RichTextBox
             {
                 Dock        = DockStyle.Fill,
@@ -525,34 +522,23 @@ namespace AIL_Studio
                 ScrollBars  = RichTextBoxScrollBars.Vertical,
                 DetectUrls  = false,
             };
-            outer.Panel1.Controls.Add(_regBox);
-            outer.Panel1.Controls.Add(PanelLabel("  REGISTERS + STACK"));
+            leftPanel.Controls.Add(_regBox);
+            leftPanel.Controls.Add(PanelLabel("  REGISTERS + STACK"));
 
-            // ── Right: inner vertical split — memory top | output bottom ──────
-            var inner = new SplitContainer
+            // Right panel: Memory (top) and Output (bottom)
+            var rightPanel = new Panel
             {
-                Dock             = DockStyle.Fill,
-                Orientation      = Orientation.Horizontal,
-                SplitterWidth    = 4,
-                BackColor        = Color.FromArgb(0x3C, 0x3C, 0x3C),
-                Panel1MinSize    = 100,
-                Panel2MinSize    = 60,
+                Dock      = DockStyle.Fill,
+                BackColor = CBg,
             };
 
-            _memBox = new RichTextBox
+            // Output at bottom (fixed height)
+            var outputContainer = new Panel
             {
-                Dock        = DockStyle.Fill,
-                BackColor   = CBg,
-                ForeColor   = CDefault,
-                Font        = PickMonoFont(9.5f),
-                ReadOnly    = true,
-                BorderStyle = BorderStyle.None,
-                WordWrap    = false,
-                ScrollBars  = RichTextBoxScrollBars.Both,
-                DetectUrls  = false,
+                Dock      = DockStyle.Bottom,
+                Height    = 150,
+                BackColor = Color.FromArgb(0x12, 0x12, 0x12),
             };
-            inner.Panel1.Controls.Add(_memBox);
-            inner.Panel1.Controls.Add(PanelLabel("  MEMORY  (6 bytes / instruction)"));
 
             _outBox = new RichTextBox
             {
@@ -566,14 +552,28 @@ namespace AIL_Studio
                 ScrollBars  = RichTextBoxScrollBars.Both,
                 DetectUrls  = false,
             };
-            inner.Panel2.Controls.Add(_outBox);
-            inner.Panel2.Controls.Add(PanelLabel("  VM OUTPUT"));
+            outputContainer.Controls.Add(_outBox);
+            outputContainer.Controls.Add(PanelLabel("  VM OUTPUT"));
 
-            inner.SplitterDistance = 380;
-            outer.Panel2.Controls.Add(inner);
-            outer.SplitterDistance = 240;
+            // Memory fills remaining space
+            _memBox = new RichTextBox
+            {
+                Dock        = DockStyle.Fill,
+                BackColor   = CBg,
+                ForeColor   = CDefault,
+                Font        = PickMonoFont(9.5f),
+                ReadOnly    = true,
+                BorderStyle = BorderStyle.None,
+                WordWrap    = false,
+                ScrollBars  = RichTextBoxScrollBars.Both,
+                DetectUrls  = false,
+            };
+            rightPanel.Controls.Add(_memBox);
+            rightPanel.Controls.Add(PanelLabel("  MEMORY  (6 bytes / instruction)"));
+            rightPanel.Controls.Add(outputContainer);
 
-            Controls.Add(outer);
+            Controls.Add(rightPanel);
+            Controls.Add(leftPanel);
         }
 
         private static Panel PanelLabel(string text)
