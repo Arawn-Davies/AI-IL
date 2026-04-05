@@ -1,16 +1,92 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    // for the documentation about the tasks.json format
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
-            "command": "dotnet build",
+            "label": "build: solution (Debug)",
+            "command": "dotnet build ${workspaceFolder}/source/AIL-Runtime.sln --configuration Debug",
+            "type": "shell",
+            "group": { "kind": "build", "isDefault": true },
+            "presentation": { "reveal": "silent" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build: solution (Release)",
+            "command": "dotnet build ${workspaceFolder}/source/AIL-Runtime.sln --configuration Release",
             "type": "shell",
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
+            "presentation": { "reveal": "always" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build: AIL-Runtime (Debug)",
+            "command": "dotnet build ${workspaceFolder}/source/AIL-Runtime/AIL-Runtime.csproj --configuration Debug",
+            "type": "shell",
+            "group": "build",
+            "presentation": { "reveal": "silent" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build: AIL-Runtime (Release)",
+            "command": "dotnet build ${workspaceFolder}/source/AIL-Runtime/AIL-Runtime.csproj --configuration Release",
+            "type": "shell",
+            "group": "build",
+            "presentation": { "reveal": "always" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build: Artemis-VM (Debug)",
+            "command": "dotnet build ${workspaceFolder}/source/Artemis-VM/Artemis_IL.csproj --configuration Debug",
+            "type": "shell",
+            "group": "build",
+            "presentation": { "reveal": "silent" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build: Artemis-VM (Release)",
+            "command": "dotnet build ${workspaceFolder}/source/Artemis-VM/Artemis_IL.csproj --configuration Release",
+            "type": "shell",
+            "group": "build",
+            "presentation": { "reveal": "always" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build: AIL-Studio (Debug)",
+            "command": "dotnet build ${workspaceFolder}/source/AIL-Studio/AIL-Studio.csproj --configuration Debug",
+            "type": "shell",
+            "group": "build",
+            "presentation": { "reveal": "silent" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build: AIL-Studio (Release)",
+            "command": "dotnet build ${workspaceFolder}/source/AIL-Studio/AIL-Studio.csproj --configuration Release",
+            "type": "shell",
+            "group": "build",
+            "presentation": { "reveal": "always" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "run: AIL-Runtime",
+            "command": "dotnet run --project ${workspaceFolder}/source/AIL-Runtime/AIL-Runtime.csproj",
+            "type": "shell",
+            "group": { "kind": "test", "isDefault": true },
+            "presentation": { "reveal": "always" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "run: AIL-Studio",
+            "command": "dotnet run --project ${workspaceFolder}/source/AIL-Studio/AIL-Studio.csproj",
+            "type": "shell",
+            "group": "test",
+            "presentation": { "reveal": "always" },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "clean: solution",
+            "command": "dotnet clean ${workspaceFolder}/source/AIL-Runtime.sln",
+            "type": "shell",
+            "group": "build",
+            "presentation": { "reveal": "always" },
             "problemMatcher": "$msCompile"
         }
     ]

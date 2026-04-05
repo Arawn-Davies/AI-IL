@@ -1,55 +1,40 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": ".NET Core Launch (console)",
-            "type": "coreclr",
+            "name": "Launch AIL-Runtime (Debug)",
+            "type": "dotnet",
             "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/bin/Debug/<insert-target-framework-here>/<insert-project-name-here>.dll",
+            "projectPath": "${workspaceFolder}/source/AIL-Runtime/AIL-Runtime.csproj",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Launch AIL-Runtime (Release)",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/source/AIL-Runtime/AIL-Runtime.csproj",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
             "stopAtEntry": false,
-            "internalConsoleOptions": "openOnSessionStart"
+            "launchConfiguration": "Release"
         },
         {
-            "name": ".NET Core Launch (web)",
-            "type": "coreclr",
+            "name": "Launch AIL-Studio (Debug, Windows)",
+            "type": "dotnet",
             "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/bin/Debug/<insert-target-framework-here>/<insert-project-name-here>.dll",
+            "projectPath": "${workspaceFolder}/source/AIL-Studio/AIL-Studio.csproj",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "stopAtEntry": false,
-            "internalConsoleOptions": "openOnSessionStart",
-            "launchBrowser": {
-                "enabled": true,
-                "args": "${auto-detect-url}",
-                "windows": {
-                    "command": "cmd.exe",
-                    "args": "/C start ${auto-detect-url}"
-                },
-                "osx": {
-                    "command": "open"
-                },
-                "linux": {
-                    "command": "xdg-open"
-                }
-            },
-            "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
-            },
-            "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
-            }
+            "console": "internalConsole",
+            "stopAtEntry": false
         },
         {
-            "name": ".NET Core Attach",
-            "type": "coreclr",
+            "name": "Attach to process",
+            "type": "dotnet",
             "request": "attach",
             "processId": "${command:pickProcess}"
         }
