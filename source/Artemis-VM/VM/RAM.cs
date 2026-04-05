@@ -35,20 +35,31 @@ namespace Artemis_IL
             return ret;
         }
 		/// <summary>
-		/// Sets a specified location in memory to a specified byte
+		/// Sets a specified location in memory to a specified byte.
+		/// Writes to any address at or above RAMLimit (data area, outside the loaded code).
 		/// </summary>
 		/// <param name="location"></param>
 		/// <param name="content"></param>
 		public void SetByte(int location, byte content)
 		{
-            if (location > RAMLimit)
+            if (location >= RAMLimit)
             {
                 memory[location] = content;
             }
             else
             {
-                throw new Exception("The application tried to modify itself and was terminated. Consult the application vendor for more support.");
+                throw new Exception("The application attempted to overwrite its own code and was terminated.");
             }
+        }
+
+		/// <summary>
+		/// Returns the byte at the specified memory location.
+		/// </summary>
+		/// <param name="location"></param>
+		/// <returns>Byte at the given address</returns>
+		public byte GetByte(int location)
+		{
+            return memory[location];
         }
 		/// <summary>
 		/// Memory as a byte array

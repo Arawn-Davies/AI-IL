@@ -1,330 +1,449 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Artemis_IL
 {
     public partial class VM
     {
         /// <summary>
-        /// Parses a byte as an instruction
+        /// Parses and executes a single instruction identified by its opcode.
+        /// Every instruction occupies exactly 6 bytes:
+        ///   byte 0 : [opcode (bits 7-2)] [addrmode (bits 1-0)]
+        ///   byte 1 : parameter 1 (8-bit register byte or value)
+        ///   bytes 2-5 : parameter 2 (32-bit little-endian value or register byte in low byte)
+        /// PC must be one ahead of IP on entry; PC is advanced by 5 for fixed-length
+        /// instructions, or set directly for control-flow instructions.
         /// </summary>
-        /// <param name="opcode"></param>
-        /// <returns>Byte of opcode</returns>
+        /// <param name="opcode">The 6-bit opcode extracted from byte 0</param>
+        /// <returns>Always 0 (reserved for future use)</returns>
         public byte ParseOpcode(byte opcode)
         {
-            #region Register Operations
-            #region [COMPLETE] MOV (Move, 0x01)
-            if (opcode == (byte)0x01)
+            // ── Register & Memory Operations ─────────────────────────────────────
+
+            // MOV — Copy value into register (0x01)
+            // Modes: RegReg, RegVal
+            if (opcode == 0x01)
             {
-                // Parameter 1: Destination, must be between 0xF0 and 0xFF
-                parameters[1] = ram.memory[(IP + 1)];
-                if (!(parameters[1] > 0xEF))
-                {
-                    //Not a register, throw an error
-                    throw new Exception("[CRITICAL ERROR] The value at " + (IP + 1) + "(" + parameters[1] + ") does not refer to a register.");
-                }
+                byte dest = ram.memory[IP + 1];
+                if (dest < 0xF0)
+                    throw new Exception($"[CRITICAL ERROR] MOV at {IP}: parameter 1 (0x{dest:X2}) is not a register.");
+
                 if (opMode == AddressMode.RegVal)
-                {
-                    // Parameter 2: Value, just set the register to the value
-                    parameters[2] = Get32BitParameter(IP + 2);
-                    SetRegister((byte)parameters[1], parameters[2]);
-#if DEBUG
-                    Globals.console.WriteLine("MOV " + parameters[1].ToString() + " " + parameters[2].ToString() + "  : " + AL.ToString());
-#endif
-                }
+                    SetRegister(dest, Get32BitParameter(IP + 2));
                 else if (opMode == AddressMode.RegReg)
-                {
-                    // Parameter 2: Register, set the register to the value in the second register
-                    parameters[2] = GetRegister(ram.memory[(IP + 2)]);
-                    SetRegister((byte)parameters[1], parameters[2]);
-                }
+                    SetRegister(dest, GetRegister(ram.memory[IP + 2]));
                 else
-                {
-                    // Parameter 2: WRONG ADDRESSING MODE
-                    throw new Exception("[CRITICAL ERROR] The adressing mode at " + IP + " (" + AdMode + ") is invalid for the MOV (0x01) instruction.");
-                }
+                    throw new Exception($"[CRITICAL ERROR] MOV at {IP}: invalid addressing mode {AdMode}.");
 
                 PC += 5;
             }
-            #endregion
-            #region [COMPLETE] MOM/E (Move Memory, 0x3A & 0x3B)
-            else if (opcode == (byte)0x3A)
+
+            // SWP — Swap two registers (0x02)
+            // Mode: RegReg
+            else if (opcode == 0x02)
             {
-                // Parameter 2: Destination
-                parameters[2] = Get32BitParameter(IP + 2);
-                // Parameter 1: Source
+                byte r1 = ram.memory[IP + 1];
+                byte r2 = ram.memory[IP + 2];
+                int tmp = GetRegister(r1);
+                SetRegister(r1, GetRegister(r2));
+                SetRegister(r2, tmp);
+                PC += 5;
+            }
+
+            // ADD — dest = dest + src (0x04)
+            // Modes: RegReg, RegVal
+            else if (opcode == 0x04)
+            {
+                byte dest = ram.memory[IP + 1];
                 if (opMode == AddressMode.RegVal)
-                {
-                    parameters[1] = GetRegister(ram.memory[IP + 1]);
-                    ram.SetByte(parameters[2], (byte)parameters[1]);
-                }
-                else if (opMode == AddressMode.ValVal)
-                {
-                    parameters[1] = ram.memory[IP + 1];
-                    ram.SetByte(parameters[2], (byte)parameters[1]);
-                }
-                PC += 5;
-            }
-            else if (opcode == (byte)0x3B)
-            {
-                // Parameter 2: Source
-                parameters[2] = Get32BitParameter(IP + 2);
-                if (opMode == AddressMode.ValVal)
-                {
-                    // Parameter 1: Destination - Register, put the value in the register into the memory
-                    parameters[1] = ram.memory[IP + 1];
-                    SetRegister((byte)parameters[1], ram.memory[parameters[2]]);
-
-                }
-                else
-                {
-                    // WRONG ADDRESSING MODE
-                    throw new Exception("[CRITICAL ERROR] The adressing mode at " + IP + " (" + AdMode + ") is invalid for the MOM (0x3B) instruction.");
-                }
-
-                PC += 5;
-            }
-            #endregion
-            #endregion
-
-            #region Arithmetic
-            #region [COMPLETE] ADD (Add, 0x04)
-            else if (opcode == (byte)0x04)
-            {
-                if (opMode == AddressMode.RegVal)
-                {
-                    SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) + Get32BitParameter(IP + 2)));
-                }
+                    SetRegister(dest, GetRegister(dest) + Get32BitParameter(IP + 2));
                 else if (opMode == AddressMode.RegReg)
-                {
-                    SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) + GetRegister(ram.memory[IP + 2])));
-                }
+                    SetRegister(dest, GetRegister(dest) + GetRegister(ram.memory[IP + 2]));
                 else
-                {
-                    throw new Exception("[CRITICAL ERROR] The instruction ADD does not support addressing mode: " + AdMode);
-                }
+                    throw new Exception($"[CRITICAL ERROR] ADD at {IP}: invalid addressing mode {AdMode}.");
                 PC += 5;
             }
-            #endregion
-            if (Globals.DebugMode == true)
-            {
-                #region [Unfinished] SUB (Subtract, 0x05)
-                if (opcode == (byte)0x05)
-                {
-                    if (opMode == AddressMode.RegVal)
-                    {
-                        SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) - Get32BitParameter(IP + 2)));
-                    }
-                    else if (opMode == AddressMode.RegReg)
-                    {
-                        SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) - GetRegister(ram.memory[IP + 2])));
-                    }
-                    else
-                    {
-                        throw new Exception("[CRITICAL ERROR] The instruction SUB does not support addressing mode: " + AdMode);
-                    }
-                    PC += 5;
-                }
-                #endregion
-                #region [Unfinished] MUL (Multiply, 0x30)
-                else if (opcode == (byte)0x30)
-                {
-                    if (opMode == AddressMode.RegVal)
-                    {
-                        SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) * Get32BitParameter(IP + 2)));
-                    }
-                    else if (opMode == AddressMode.RegReg)
-                    {
-                        SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) * GetRegister(ram.memory[IP + 2])));
-                    }
-                    else
-                    {
-                        throw new Exception("[CRITICAL ERROR] The instruction MUL does not support addressing mode: " + AdMode);
-                    }
-                    PC += 5;
-                }
-                #endregion
-                #region [Unfinished] DIV (Divide, 0x31)
-                else if (opcode == (byte)0x31)
-                {
-                    if (opMode == AddressMode.RegVal)
-                    {
-                        SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) / Get32BitParameter(IP + 2)));
-                    }
-                    else if (opMode == AddressMode.RegReg)
-                    {
-                        SetRegister(ram.memory[IP + 1], (GetRegister(ram.memory[IP + 1]) / GetRegister(ram.memory[IP + 2])));
-                    }
-                    else
-                    {
-                        throw new Exception("[CRITICAL ERROR] The instruction DIV does not support addressing mode: " + AdMode);
-                    }
-                    PC += 5;
-                }
-                #endregion
-                #region [Unfinished] INC (Increment, 0x08)
-                else if (opcode == (byte)0x08)
-                {
-                    if (opMode == AddressMode.RegVal)
-                    {
-                        int i = GetRegister(ram.memory[IP + 1]);
-                        i++;
-                        SetRegister(ram.memory[IP + 1], i);
-                    }
-                    else if (opMode == AddressMode.RegReg)
-                    {
-                        int i = GetRegister(ram.memory[IP + 1]);
-                        i++;
-                        SetRegister(ram.memory[IP + 1], i);
-                    }
-                    else
-                    {
-                        throw new Exception("[CRITICAL ERROR] The instruction INC does not support addressing mode: " + AdMode);
-                    }
-                    PC += 5;
-                }
-                #endregion
-                #region [Unfinished] DEC (Decrement, 0x09)
-                else if (opcode == (byte)0x08)
-                {
-                    if (opMode == AddressMode.RegVal)
-                    {
-                        int i = GetRegister(ram.memory[IP + 1]);
-                        i--;
-                        SetRegister(ram.memory[IP + 1], i);
-                    }
-                    else if (opMode == AddressMode.RegReg)
-                    {
-                        int i = GetRegister(ram.memory[IP + 1]);
-                        i--;
-                        SetRegister(ram.memory[IP + 1], i);
-                    }
-                    else
-                    {
-                        throw new Exception("[CRITICAL ERROR] The instruction INC does not support addressing mode: " + AdMode);
-                    }
-                    PC += 5;
-                }
-                #endregion
-            }
-            #endregion
 
-            #region Flow Operations
-            #region [COMPLETE] CLL (Call, 0x11)
-            else if (opcode == (byte)0x11)
+            // SUB — dest = dest - src (0x05)
+            // Modes: RegReg, RegVal
+            else if (opcode == 0x05)
             {
-                // Parameter 1: Memory Location
-                // Add the next position in ram to the call stack
-                CallStack.Call((PC + 5));
-                // Jump to the location
-                parameters[1] = ram.memory[(IP + 1)];
-                PC = (byte)parameters[1];
-                if (Globals.DebugMode == true)
-                {
-                    Globals.console.WriteLine("CLL " + parameters[1].ToString());
-                }
+                byte dest = ram.memory[IP + 1];
+                if (opMode == AddressMode.RegVal)
+                    SetRegister(dest, GetRegister(dest) - Get32BitParameter(IP + 2));
+                else if (opMode == AddressMode.RegReg)
+                    SetRegister(dest, GetRegister(dest) - GetRegister(ram.memory[IP + 2]));
+                else
+                    throw new Exception($"[CRITICAL ERROR] SUB at {IP}: invalid addressing mode {AdMode}.");
+                PC += 5;
             }
-            #endregion
-            #region [COMPLETE] RET (Return, 0x12)
-            else if (opcode == (byte)0x12)
+
+            // SHL — Shift left (0x06)
+            // param1 = src register, param2 = positions (value)
+            else if (opcode == 0x06)
             {
-                // Get the last location from the call stack and jump to it
+                byte src = ram.memory[IP + 1];
+                int positions = Get32BitParameter(IP + 2) & 31;
+                SetRegister(src, GetRegister(src) << positions);
+                PC += 5;
+            }
+
+            // SHR — Shift right (0x07)
+            // param1 = src register, param2 = positions (value)
+            else if (opcode == 0x07)
+            {
+                byte src = ram.memory[IP + 1];
+                int positions = Get32BitParameter(IP + 2) & 31;
+                SetRegister(src, (int)((uint)GetRegister(src) >> positions));
+                PC += 5;
+            }
+
+            // INC — reg++ (0x08)
+            else if (opcode == 0x08)
+            {
+                byte reg = ram.memory[IP + 1];
+                SetRegister(reg, GetRegister(reg) + 1);
+                PC += 5;
+            }
+
+            // DEC — reg-- (0x09)
+            else if (opcode == 0x09)
+            {
+                byte reg = ram.memory[IP + 1];
+                SetRegister(reg, GetRegister(reg) - 1);
+                PC += 5;
+            }
+
+            // AND — srcA = srcA & srcB (0x0A)
+            // Modes: RegReg, RegVal
+            else if (opcode == 0x0A)
+            {
+                byte dest = ram.memory[IP + 1];
+                if (opMode == AddressMode.RegReg)
+                    SetRegister(dest, GetRegister(dest) & GetRegister(ram.memory[IP + 2]));
+                else
+                    SetRegister(dest, GetRegister(dest) & Get32BitParameter(IP + 2));
+                PC += 5;
+            }
+
+            // BOR — srcA = srcA | srcB (0x0B)
+            // Modes: RegReg, RegVal
+            else if (opcode == 0x0B)
+            {
+                byte dest = ram.memory[IP + 1];
+                if (opMode == AddressMode.RegReg)
+                    SetRegister(dest, GetRegister(dest) | GetRegister(ram.memory[IP + 2]));
+                else
+                    SetRegister(dest, GetRegister(dest) | Get32BitParameter(IP + 2));
+                PC += 5;
+            }
+
+            // XOR — srcA = srcA ^ srcB (0x0C)
+            // Modes: RegReg, RegVal
+            else if (opcode == 0x0C)
+            {
+                byte dest = ram.memory[IP + 1];
+                if (opMode == AddressMode.RegReg)
+                    SetRegister(dest, GetRegister(dest) ^ GetRegister(ram.memory[IP + 2]));
+                else
+                    SetRegister(dest, GetRegister(dest) ^ Get32BitParameter(IP + 2));
+                PC += 5;
+            }
+
+            // NOT — src = ~src (0x0D)
+            else if (opcode == 0x0D)
+            {
+                byte src = ram.memory[IP + 1];
+                SetRegister(src, ~GetRegister(src));
+                PC += 5;
+            }
+
+            // ROL — Rotate left (0x0E)
+            // param1 = src register, param2 = positions (value)
+            else if (opcode == 0x0E)
+            {
+                byte src = ram.memory[IP + 1];
+                int n = Get32BitParameter(IP + 2) & 31;
+                uint val = (uint)GetRegister(src);
+                SetRegister(src, (int)((val << n) | (val >> (32 - n))));
+                PC += 5;
+            }
+
+            // ROR — Rotate right (0x0F)
+            // param1 = src register, param2 = positions (value)
+            else if (opcode == 0x0F)
+            {
+                byte src = ram.memory[IP + 1];
+                int n = Get32BitParameter(IP + 2) & 31;
+                uint val = (uint)GetRegister(src);
+                SetRegister(src, (int)((val >> n) | (val << (32 - n))));
+                PC += 5;
+            }
+
+            // ── Flow Control ──────────────────────────────────────────────────────
+
+            // JMP — Unconditional jump (0x10)
+            // RegReg/RegVal: target from register (param1); ValReg/ValVal: target from param2
+            else if (opcode == 0x10)
+            {
+                if (opMode == AddressMode.RegReg || opMode == AddressMode.RegVal)
+                    PC = (byte)GetRegister(ram.memory[IP + 1]);
+                else
+                    PC = (byte)Get32BitParameter(IP + 2);
+                // No PC += 5 — PC is already the jump target; Execute() will do IP=PC, PC++
+            }
+
+            // CLL — Call subroutine (0x11)
+            // Pushes return address onto call stack, then jumps
+            else if (opcode == 0x11)
+            {
+                // Return address = address immediately after this 6-byte instruction
+                CallStack.Call(PC + 5);
+                if (opMode == AddressMode.RegReg || opMode == AddressMode.RegVal)
+                    PC = (byte)GetRegister(ram.memory[IP + 1]);
+                else
+                    PC = (byte)Get32BitParameter(IP + 2);
+            }
+
+            // RET — Return from subroutine (0x12)
+            else if (opcode == 0x12)
+            {
                 PC = (byte)CallStack.Return();
-                if (Globals.DebugMode == true)
-                {
-                    Globals.console.WriteLine("RET " + PC.ToString());
-                }
-            }
-            #endregion
-            #endregion
-
-            if (Globals.DebugMode == true)
-            {
-                #region Stack Control
-                #region [Incomplete] PSH (Push, 0x20)
-                if (opcode == 0x20)
-                {
-
-                }
-                #endregion
-                #region [Incomplete] POP (Pop, 0x21)
-                else if (opcode == 0x21)
-                {
-
-                }
-                #endregion
-                #endregion
-                
-                #region I/O
-                #region [Incomplete] INB (Software Interrupt, 0x24)
-                else if (opcode == 0x24)
-                {
-                }
-                #endregion
-                #region [Incomplete] INW (Software Interrupt, 0x25)
-                else if (opcode == 0x25)
-                {
-
-                }
-                #endregion
-                #region [Incomplete] IND (Software Interrupt, 0x26)
-                else if (opcode == 0x26)
-                {
-
-                }
-                #endregion
-
-                #region [Incomplete] OUB (Software Interrupt, 0x27)
-                else if (opcode == 0x27)
-                {
-
-                }
-                #endregion
-                #region [Incomplete] OUW (Software Interrupt, 0x28)
-                else if (opcode == 0x28)
-                {
-
-                }
-                #endregion
-                #region [Incomplete] OUD (Software Interrupt, 0x29)
-                else if (opcode == 0x29)
-                {
-
-                }
-                #endregion
-                #endregion
+                // No PC += 5 — PC is the saved return address
             }
 
-            #region Interrupts
-            if (Globals.DebugMode == true)
+            // JMT — Jump if true (0x13)
+            else if (opcode == 0x13)
             {
-                #region [Incomplete] SWI (Software Interrupt, 0x2A)
-                if (opcode == (byte)0x2A)
+                if (LastLogic)
                 {
-
+                    if (opMode == AddressMode.RegReg || opMode == AddressMode.RegVal)
+                        PC = (byte)GetRegister(ram.memory[IP + 1]);
+                    else
+                        PC = (byte)Get32BitParameter(IP + 2);
                 }
-                #endregion
+                else
+                    PC += 5;
             }
-            #region [COMPLETE] KEI (Kernel Interrupt, 0x2B)
-            else if (opcode == (byte)0x2B)
+
+            // JMF — Jump if false (0x14)
+            else if (opcode == 0x14)
             {
-                // Parameter 1: Kernel Interrupt to call
-                parameters[1] = ram.memory[(IP + 1)];
+                if (!LastLogic)
+                {
+                    if (opMode == AddressMode.RegReg || opMode == AddressMode.RegVal)
+                        PC = (byte)GetRegister(ram.memory[IP + 1]);
+                    else
+                        PC = (byte)Get32BitParameter(IP + 2);
+                }
+                else
+                    PC += 5;
+            }
+
+            // CLT — Call if true (0x17)
+            else if (opcode == 0x17)
+            {
+                if (LastLogic)
+                {
+                    CallStack.Call(PC + 5);
+                    if (opMode == AddressMode.RegReg || opMode == AddressMode.RegVal)
+                        PC = (byte)GetRegister(ram.memory[IP + 1]);
+                    else
+                        PC = (byte)Get32BitParameter(IP + 2);
+                }
+                else
+                    PC += 5;
+            }
+
+            // CLF — Call if false (0x18)
+            else if (opcode == 0x18)
+            {
+                if (!LastLogic)
+                {
+                    CallStack.Call(PC + 5);
+                    if (opMode == AddressMode.RegReg || opMode == AddressMode.RegVal)
+                        PC = (byte)GetRegister(ram.memory[IP + 1]);
+                    else
+                        PC = (byte)Get32BitParameter(IP + 2);
+                }
+                else
+                    PC += 5;
+            }
+
+            // ── Test Instructions ─────────────────────────────────────────────────
+
+            // TEQ — Test equal; sets LastLogic if reg1 == reg2 (0x1A)
+            else if (opcode == 0x1A)
+            {
+                LastLogic = GetRegister(ram.memory[IP + 1]) == GetRegister(ram.memory[IP + 2]);
+                PC += 5;
+            }
+
+            // TNE — Test not equal (0x1B)
+            else if (opcode == 0x1B)
+            {
+                LastLogic = GetRegister(ram.memory[IP + 1]) != GetRegister(ram.memory[IP + 2]);
+                PC += 5;
+            }
+
+            // TLT — Test less than (0x1C)
+            else if (opcode == 0x1C)
+            {
+                LastLogic = GetRegister(ram.memory[IP + 1]) < GetRegister(ram.memory[IP + 2]);
+                PC += 5;
+            }
+
+            // TMT — Test more than (0x1D)
+            else if (opcode == 0x1D)
+            {
+                LastLogic = GetRegister(ram.memory[IP + 1]) > GetRegister(ram.memory[IP + 2]);
+                PC += 5;
+            }
+
+            // ── Stack Manipulation ────────────────────────────────────────────────
+
+            // PSH — Push onto stack (0x20)
+            // Decrements SP, then writes data to _stackMemory[SP].
+            else if (opcode == 0x20)
+            {
+                byte val;
+                if (opMode == AddressMode.RegReg || opMode == AddressMode.RegVal)
+                    val = (byte)GetRegister(ram.memory[IP + 1]);
+                else
+                    val = ram.memory[IP + 1];
+                SP--;
+                _stackMemory[SP] = val;
+                PC += 5;
+            }
+
+            // POP — Pop from stack (0x21)
+            // Reads from _stackMemory[SP], then increments SP.
+            else if (opcode == 0x21)
+            {
+                byte val = _stackMemory[SP];
+                SP++;
+                SetRegister(ram.memory[IP + 1], val);
+                PC += 5;
+            }
+
+            // ── I/O ───────────────────────────────────────────────────────────────
+
+            // INB — Receive byte from port (0x24)
+            // param1 = port, param2[0] = dest register
+            else if (opcode == 0x24)
+            {
+                // I/O port infrastructure reserved for future implementation
+                PC += 5;
+            }
+
+            // INW — Receive word from port (0x25)
+            else if (opcode == 0x25)
+            {
+                PC += 5;
+            }
+
+            // IND — Receive double word from port (0x26)
+            else if (opcode == 0x26)
+            {
+                PC += 5;
+            }
+
+            // OUB — Send byte to port (0x27)
+            // param1 = port, param2 = src register or value
+            else if (opcode == 0x27)
+            {
+                PC += 5;
+            }
+
+            // OUW — Send word to port (0x28)
+            else if (opcode == 0x28)
+            {
+                PC += 5;
+            }
+
+            // OUD — Send double word to port (0x29)
+            else if (opcode == 0x29)
+            {
+                PC += 5;
+            }
+
+            // ── Interrupts ────────────────────────────────────────────────────────
+
+            // SWI — Software interrupt (0x2A)
+            else if (opcode == 0x2A)
+            {
+                parameters[1] = ram.memory[IP + 1];
+                StandardLib.SoftwareInterrupts.HandleInterrupt(parameters[1]);
+                PC += 5;
+            }
+
+            // KEI — Kernel interrupt (0x2B)
+            else if (opcode == 0x2B)
+            {
+                parameters[1] = ram.memory[IP + 1];
                 StandardLib.KernelInterrupts.HandleInterrupt(parameters[1]);
                 PC += 5;
             }
 
-            #endregion
-            #endregion
+            // ── Arithmetic (continued) ────────────────────────────────────────────
+
+            // MUL — dest = dest * src (0x30)
+            // Modes: RegReg, RegVal
+            else if (opcode == 0x30)
+            {
+                byte dest = ram.memory[IP + 1];
+                if (opMode == AddressMode.RegReg)
+                    SetRegister(dest, GetRegister(dest) * GetRegister(ram.memory[IP + 2]));
+                else
+                    SetRegister(dest, GetRegister(dest) * Get32BitParameter(IP + 2));
+                PC += 5;
+            }
+
+            // DIV — dest = dest / src (0x31), integer division
+            // Modes: RegReg, RegVal
+            else if (opcode == 0x31)
+            {
+                byte dest = ram.memory[IP + 1];
+                int divisor = (opMode == AddressMode.RegReg)
+                    ? GetRegister(ram.memory[IP + 2])
+                    : Get32BitParameter(IP + 2);
+                if (divisor == 0)
+                    throw new Exception($"[CRITICAL ERROR] DIV at {IP}: division by zero.");
+                SetRegister(dest, GetRegister(dest) / divisor);
+                PC += 5;
+            }
+
+            // ── Register & Memory Operations (continued) ──────────────────────────
+
+            // MOM — Move to memory; write src to dest address (0x3A)
+            // Modes: RegVal (src=register, dest=address), ValVal (src=value, dest=address)
+            else if (opcode == 0x3A)
+            {
+                int destAddr = Get32BitParameter(IP + 2);
+                int srcVal;
+                if (opMode == AddressMode.RegVal)
+                    srcVal = GetRegister(ram.memory[IP + 1]);
+                else
+                    srcVal = ram.memory[IP + 1];
+                ram.SetByte(destAddr, (byte)srcVal);
+                PC += 5;
+            }
+
+            // MOE — Move from memory; read src address into dest register (0x3B)
+            // Mode: ValVal (dest=register byte in param1, src address in param2)
+            else if (opcode == 0x3B)
+            {
+                int srcAddr = Get32BitParameter(IP + 2);
+                byte destReg = ram.memory[IP + 1];
+                SetRegister(destReg, ram.GetByte(srcAddr));
+                PC += 5;
+            }
 
             else
             {
-                throw new Exception("[ERROR] The instruction at " + IP + " (" + opcode + ") is not supported by the Artemis IL Runtime");
+                throw new Exception($"[ERROR] Unsupported instruction at {IP}: opcode 0x{opcode:X2}.");
             }
 
-            NewIP = 0;
-            return NewIP;
+            return 0;
         }
     }
 }

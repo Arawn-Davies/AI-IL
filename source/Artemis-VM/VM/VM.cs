@@ -6,11 +6,11 @@ namespace Artemis_IL
 {
     public partial class VM
     {
-		private bool LastLogic;
 		/// <summary>
-		/// Contains the byte value of the new Instruction Pointer
+		/// Result of the last test instruction (TEQ/TNE/TLT/TMT).
+		/// Used by conditional jump/call instructions.
 		/// </summary>
-		private byte NewIP;
+		private bool LastLogic;
 		/// <summary>
 		/// Current instructions parameters
 		/// </summary>
@@ -89,6 +89,11 @@ namespace Artemis_IL
         #endregion
 
         public bool Running = false;
+
+        /// <summary>
+        /// 256-byte stack memory. SP indexes into this array; grows downward from 0xFF.
+        /// </summary>
+        public byte[] _stackMemory = new byte[256];
 	
 		/// <summary>
 		/// Loads the application as a byte array into the virtual machine's memory
@@ -118,16 +123,14 @@ namespace Artemis_IL
 		public VM(byte[] executable, int ramsize)
 		{
             ram = new RandomAccessMemory(ramsize);
-            // Declares the six-bit instruction to a new boolean array of length 9 
-            sixbits = new bool[9];
-            // Declares the two-bit parameter addressing mode to a new boolean array of length 2
-            twobits = new bool[2];
             // Defines the parameters integer array as an array of length 5
             parameters = new int[5];
 			// Sets the instruction pointer to 0
 			IP = 0;
-			// Sets the program counter to 1
+			// Sets the program counter to 1 (one ahead of IP)
 			PC = 1;
+			// Stack Pointer starts at 0xFF (top of 256-byte stack segment)
+			SP = 0xFF;
 			// Sets the parent virtual machine for the standard library to this instance
 			KernelInterrupts.ParentVM = this;
             SoftwareInterrupts.ParentVM = this;
@@ -172,23 +175,21 @@ namespace Artemis_IL
         public void Execute()
 		{
             Running = true;
-            while (Running == true)
+            while (Running && ram.memory[IP] != 0x00)
             {
-                while (ram.memory[IP] != 0x00)
+                byte firstByte = ram.memory[IP];
+                byte opcode = (byte)GetFirstSix(firstByte);
+                if (opcode == 0x00)
                 {
-                    /// <summary>
-                    /// Gets the operation from the first six bytes of the instruction pointer
-                    /// </summary>
-                    /// <returns>operation from instruction pointer</returns>
-                    byte opcode = (byte)GetFirstSix(ram.memory[IP]);
-                    GetAddressMode(ram.memory[IP]);
-                    ParseOpcode(opcode);
-                    IP = PC;
-                    PC++;
+                    Running = false;
+                    break;
                 }
+                GetAddressMode(firstByte);
+                ParseOpcode(opcode);
+                IP = PC;
+                PC++;
             }
             Running = false;
-            Halt();
 		}
 
         // Useful for stepping in monitor or debugging modes
@@ -196,8 +197,14 @@ namespace Artemis_IL
         {
             if (ram.memory[IP] != 0x00)
             {
-                byte opcode = (byte) GetFirstSix((ram.memory[IP]));
-                GetAddressMode(ram.memory[IP]);
+                byte firstByte = ram.memory[IP];
+                byte opcode = (byte)GetFirstSix(firstByte);
+                if (opcode == 0x00)
+                {
+                    Running = false;
+                    return;
+                }
+                GetAddressMode(firstByte);
                 ParseOpcode(opcode);
                 IP = PC;
                 PC++;
@@ -212,78 +219,53 @@ namespace Artemis_IL
 
         public void Halt()
         {
-            ram.memory[IP] = 0x00;
             Running = false;
         }
 
         /// <summary>
-        /// Retrieves the last two bits from a single byte (8 bits)
+        /// Retrieves the last two bits from a single byte (bits 1-0, the address mode field).
+        /// Per spec §2: bits 41-40 of the 48-bit instruction = the lower 2 bits of byte 0.
         /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">First byte of the instruction</param>
+        /// <returns>Address mode value (0-3)</returns>
         public int GetLastTwo(byte b)
         {
-            byte c = 0;
-            for (int i = 7; i > 5; i--)
-            {
-                twobits[c] = BitOps.GetBit(b, i);
-                c++;
-            }
-            return BitOps.GetIntegerValue(twobits);
+            return b & 0x03;
         }
         /// <summary>
-        /// Stores the first six bits in a byte
+        /// Retrieves the integer value of the upper six bits in a byte (the opcode field).
+        /// Per spec §2: bits 47-42 of the 48-bit instruction = the upper 6 bits of byte 0.
         /// </summary>
-        private bool[] sixbits;
-
-        /// <summary>
-        /// Retrieves the integer value of first six bits in a byte
-        /// </summary>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="b">First byte of the instruction</param>
+        /// <returns>Opcode value (0-63)</returns>
         public int GetFirstSix(byte b)
         {
-            for (int i = 0; i < 6; i++)
-            {
-                sixbits[i] = BitOps.GetBit(b, i);
-            }
-            return BitOps.GetIntegerValue(sixbits);
+            return (b >> 2) & 0x3F;
         }
 
         /// <summary>
-        /// Stores the last two bits in a byte (byte - sixbits)
+		/// Stores content into a 16-bit split register (A, B, or C), setting both low and high halves.
         /// </summary>
-        private bool[] twobits;
-
-        /// <summary>
-        /// Stores content into registers, splitting the content into the two register halves if needed
-        /// </summary>
-        /// <param name="Register"></param>
-        /// <param name="Content"></param>
+        /// <param name="Register">Register name ('A', 'B', or 'C')</param>
+        /// <param name="Content">16-bit value to store</param>
         public void SetSplit(char Register, int Content)
         {
-            byte lower;
-            byte higher;
-            if (Content > 255)
+            byte lower = (byte)(Content & 0xFF);
+            byte higher = (byte)((Content >> 8) & 0xFF);
+            if (Register == 'A')
             {
-                lower = (byte)255;
-                higher = (byte)(Content - 255);
+                AL = lower;
+                AH = higher;
             }
-            else
+            else if (Register == 'B')
             {
-                lower = (byte)Content;
-                if (Register == 'A')
-                {
-                    AL = lower;
-                }
-                else if (Register == 'B')
-                {
-                    BL = lower;
-                }
-                else if (Register == 'C')
-                {
-                    CL = lower;
-                }
+                BL = lower;
+                BH = higher;
+            }
+            else if (Register == 'C')
+            {
+                CL = lower;
+                CH = higher;
             }
         }
 
