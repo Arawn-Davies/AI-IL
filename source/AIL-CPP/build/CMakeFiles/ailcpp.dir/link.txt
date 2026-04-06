@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/ailcpp.dir/link.d CMakeFiles/ailcpp.dir/src/main.cpp.o -o ailcpp  libail-vm.a libail-compiler.a libail-decompiler.a libail-compiler.a libail-vm.a

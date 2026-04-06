@@ -1,90 +1,110 @@
 #pragma once
-#include <cstdint>
-#include <vector>
-#include <array>
+#include "ail/config.hpp"
 #include "ail/vm/ram.hpp"
 #include "ail/vm/call_stack.hpp"
 #include "ail/address_mode.hpp"
 
 namespace ail {
 
-/// AIL virtual machine.
+/// VM error codes returned by execute() / tick().
+enum class VMError : uint8_t {
+    None         = 0,
+    BadOpcode    = 1,  ///< Unrecognised opcode
+    BadAddrMode  = 2,  ///< Invalid addressing mode for this opcode
+    BadRegister  = 3,  ///< Byte is not a valid register identifier
+    DivByZero    = 4,  ///< DIV with a zero divisor
+    MemFault     = 5,  ///< Write to read-only code region
+    StackUnder   = 6,  ///< POP or RET on empty stack
+    StackOver    = 7,  ///< PSH or CLL overflows the hardware stack / call stack
+};
+
+/// AIL virtual machine — heap-free, exception-free, I/O overrideable.
 ///
-/// Execution model (spec §5):
-///   - IP  = address of the currently-executing instruction
-///   - PC  = address of the *next* instruction (IP + 6 after each step)
-///   - Instructions are 6 bytes: byte0=(opcode<<2)|addrmode, byte1=param1, bytes2-5=param2
+/// Addressing (spec §2 + §3):
+///   PC and IP are held as uint16_t so the full 16-bit address space (64 KB)
+///   is reachable.  Existing binaries compiled by the C# toolchain use only
+///   8-bit addresses and work unchanged.
 ///
-/// The stack is a separate 256-byte array; SP starts at 0xFF and grows downward.
+/// Instruction layout (6 bytes):
+///   byte 0    = (opcode << 2) | addrmode
+///   byte 1    = param1  (8-bit register ID or immediate)
+///   bytes 2-5 = param2  (32-bit little-endian value or register byte)
+///
+/// Stack (spec §4):
+///   A 256-byte hardware stack separate from RAM, indexed by SP (0xFF → 0x00).
+///   SP is read-only to programs.
+///
+/// Instantiation on embedded:
+///   Declare VM as a global or static object so the RAM array (AIL_RAM_SIZE
+///   bytes) is placed in BSS, not on the call stack.
 class VM {
 public:
-    /// Construct a VM loaded with @p code and a RAM of @p ramSize bytes.
-    VM(const std::vector<uint8_t>& code, int ramSize = 1024 * 1024);
-
-    /// Run until a halt condition (opcode 0x00 or KEI 0x02).
-    void execute();
-
-    /// Execute exactly one instruction.
-    void tick();
-
-    /// Jump to @p addr and execute from there.
-    void executeAt(uint8_t addr);
-
-    /// Request the VM to stop after the current instruction completes.
-    void halt();
-
-    bool running = false;
+    /// Construct a VM and load @p codeLen bytes from @p code.
+    VM(const uint8_t* code, int codeLen);
 
     // ── Registers (spec §3) ──────────────────────────────────────────────────
-    uint8_t  PC = 1;   ///< Program Counter — next instruction
-    uint8_t  IP = 0;   ///< Instruction Pointer — current instruction
-    uint8_t  SP = 0xFF;///< Stack Pointer (read-only to programs)
-    uint8_t  SS = 0;   ///< Stack Segment
-    uint8_t  AL = 0;
-    uint8_t  AH = 0;
-    uint8_t  BL = 0;
-    uint8_t  BH = 0;
-    uint8_t  CL = 0;
-    uint8_t  CH = 0;
-    int32_t  X  = 0;   ///< 32-bit general purpose
-    int32_t  Y  = 0;   ///< 32-bit general purpose
+    uint16_t PC = 1;    ///< Program Counter — address of *next* instruction
+    uint16_t IP = 0;    ///< Instruction Pointer — current instruction address
+    uint8_t  SP = 0xFF; ///< Stack Pointer (read-only to programs, grows ↓)
+    uint8_t  SS = 0;    ///< Stack Segment base
+    uint8_t  AL = 0;    ///< Lower byte of A (16-bit)
+    uint8_t  AH = 0;    ///< Higher byte of A
+    uint8_t  BL = 0;    ///< Lower byte of B (16-bit)
+    uint8_t  BH = 0;    ///< Higher byte of B
+    uint8_t  CL = 0;    ///< Lower byte of C (16-bit)
+    uint8_t  CH = 0;    ///< Higher byte of C
+    int32_t  X  = 0;    ///< 32-bit general-purpose
+    int32_t  Y  = 0;    ///< 32-bit general-purpose
 
-    RAM ram;
+    bool    running  = false;
+    VMError lastError = VMError::None; ///< Set when execution halts abnormally
 
-    /// 256-byte hardware stack; indexed by SP.
-    std::array<uint8_t, 256> stackMemory{};
+    RAM                  ram;
+    uint8_t              stackMemory[256] = {}; ///< Hardware stack (separate from RAM)
+    bool                 lastLogic = false;     ///< Result of last TEQ/TNE/TLT/TMT
 
-    /// Result of the most recent test instruction (TEQ/TNE/TLT/TMT).
-    bool lastLogic = false;
+    // ── Execution ────────────────────────────────────────────────────────────
 
-    // ── Helpers (used by VM and interrupt handlers) ──────────────────────────
+    /// Run until halt (opcode 0x00 or KEI 0x02) or error.
+    /// Returns the final error code (VMError::None on clean halt).
+    VMError execute();
 
-    /// Write @p value to the register identified by @p reg.
-    void setRegister(uint8_t reg, int32_t value);
+    /// Execute exactly one instruction.
+    /// Returns VMError::None if the step succeeded.
+    VMError tick();
+
+    /// Jump to @p addr and execute from there.
+    VMError executeAt(uint16_t addr);
+
+    /// Request the VM to stop after the current instruction.
+    void halt();
+
+    // ── Register helpers (used by interrupt handlers) ────────────────────────
+
+    /// Write @p value into the register identified by @p reg (0xF0–0xFE).
+    /// SP writes are silently ignored (read-only per spec §3).
+    VMError setRegister(uint8_t reg, int32_t value);
 
     /// Read the current value of the register identified by @p reg.
     int32_t getRegister(uint8_t reg) const;
 
-    /// Set both halves of a 16-bit split register (A, B, or C).
+    /// Set both halves of split register 'A', 'B', or 'C'.
     void setSplit(char which, int32_t value);
 
-    /// Get the combined 16-bit value of a split register.
+    /// Get the combined 16-bit value of split register 'A', 'B', or 'C'.
     int32_t getSplit(char which) const;
 
-    // ── Instruction dispatch ─────────────────────────────────────────────────
-
-    /// Decode and execute the opcode.  Called from execute()/tick().
-    void parseOpcode(uint8_t opcode);
+    // ── Instruction dispatch (called from execute/tick) ───────────────────────
+    VMError parseOpcode(uint8_t opcode);
 
 private:
     AddressMode m_addrMode = AddressMode::RegReg;
-    int         m_adMode   = 0;
     CallStack   m_callStack;
 
-    void getAddressMode(uint8_t b);
+    void    getAddressMode(uint8_t b);
 
-    /// Read a little-endian 32-bit integer from RAM at @p offset.
-    int32_t get32(int offset) const;
+    /// Read a little-endian 32-bit integer from RAM at byte offset @p off.
+    int32_t get32(int off) const;
 };
 
 } // namespace ail

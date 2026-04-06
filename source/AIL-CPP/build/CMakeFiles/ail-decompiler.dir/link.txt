@@ -1,0 +1,2 @@
+/usr/bin/ar qc libail-decompiler.a "CMakeFiles/ail-decompiler.dir/src/decompiler/decompiler.cpp.o"
+/usr/bin/ranlib libail-decompiler.a
