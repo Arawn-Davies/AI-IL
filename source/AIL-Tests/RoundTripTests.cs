@@ -36,7 +36,7 @@ namespace AIL_Tests
             Artemis_IL.Globals.console = _console;
             Artemis_IL.Globals.DebugMode = false;
             _console.Reset();
-            new VM(code, 65536).Execute();
+            new VM(code, Globals.DefaultRamSize).Execute();
             return _console.Output;
         }
 

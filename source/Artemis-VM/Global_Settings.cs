@@ -21,6 +21,13 @@ namespace Artemis_IL
         public static VConsole console = new NullConsole();
 
         /// <summary>
+        /// Default RAM allocation for a new VM instance, in bytes (1 MB).
+        /// All VM instantiation sites should use this constant so that the
+        /// RAM size can be changed in one place.
+        /// </summary>
+        public const int DefaultRamSize = 1_048_576;
+
+        /// <summary>
         /// When <c>true</c>, the VM and standard-library interrupts emit additional
         /// diagnostic output (e.g. "KEI 0x01: ...") to <see cref="console"/>.
         /// Set to <c>false</c> for normal execution.

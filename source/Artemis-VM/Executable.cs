@@ -36,8 +36,8 @@ namespace Artemis_IL
         public static void Run(byte[] application)
         {
             byte[] code = ExtractCode(application);
-            // Allocate 64 KB of RAM as specified (§1 of the specification)
-            VM virtualMachine = new VM(code, 65536);
+            // Allocate 1 MB of RAM (see Globals.DefaultRamSize)
+            VM virtualMachine = new VM(code, Globals.DefaultRamSize);
             virtualMachine.Execute();
         }
 

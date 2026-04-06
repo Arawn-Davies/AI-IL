@@ -79,7 +79,7 @@ namespace AIL_Studio
 
         private void InitVM()
         {
-            _vm         = new VM(_code, 65536);
+            _vm         = new VM(_code, Globals.DefaultRamSize);
             _vm.Running = true;
             _halted     = false;
             _steps      = 0;

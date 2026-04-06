@@ -30,7 +30,7 @@ namespace AIL_Tests
             Artemis_IL.Globals.DebugMode = false;
             _console.Reset();
 
-            var vm = new VM(code, 65536);
+            var vm = new VM(code, Globals.DefaultRamSize);
             vm.Execute();
             return vm;
         }
@@ -551,9 +551,9 @@ KEI 0x02
         /// Each result is printed on its own line via KEI 0x01 AL=0x05 (write-integer mode).
         /// Expected output: "7\n7\n42\n5\nHalting!\n"
         ///
-        /// Note: PC and IP are byte-sized (0–255), so a single program is limited to
-        /// ~256 bytes (~42 instructions). Each operation block uses 7 instructions
-        /// (42 bytes) to stay well within that bound.
+        /// Note: PC and IP are byte-sized registers (0–255), so the instruction pointer
+        /// wraps at 256 bytes regardless of RAM size. Each operation block uses 7
+        /// instructions (42 bytes), keeping the total program well within that limit.
         /// </summary>
         [Fact]
         public void Calculator_AllOperations_PrintsAllResults()
