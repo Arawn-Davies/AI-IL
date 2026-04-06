@@ -544,5 +544,57 @@ KEI 0x02
             CompileAndRun(source);
             Assert.Equal("20 / 4 = 5\nHalting!\n", _console.Output);
         }
+
+        /// <summary>
+        /// Full calculator: runs ADD, SUB, MUL, and DIV in a single program to verify
+        /// that all four arithmetic operations execute correctly in the same executable.
+        /// Each result is printed on its own line via KEI 0x01 AL=0x05 (write-integer mode).
+        /// Expected output: "7\n7\n42\n5\nHalting!\n"
+        ///
+        /// Note: PC and IP are byte-sized (0–255), so a single program is limited to
+        /// ~256 bytes (~42 instructions). Each operation block uses 7 instructions
+        /// (42 bytes) to stay well within that bound.
+        /// </summary>
+        [Fact]
+        public void Calculator_AllOperations_PrintsAllResults()
+        {
+            const string source = @"
+; ADD: 3 + 4 = 7
+MOV BL, 3
+ADD BL, 4
+MOV AL, 0x05
+KEI 0x01
+MOV AL, 0x01
+MOV AH, 0x0A
+KEI 0x01
+; SUB: 10 - 3 = 7
+MOV BL, 10
+SUB BL, 3
+MOV AL, 0x05
+KEI 0x01
+MOV AL, 0x01
+MOV AH, 0x0A
+KEI 0x01
+; MUL: 6 * 7 = 42
+MOV BL, 6
+MUL BL, 7
+MOV AL, 0x05
+KEI 0x01
+MOV AL, 0x01
+MOV AH, 0x0A
+KEI 0x01
+; DIV: 20 / 4 = 5
+MOV BL, 20
+DIV BL, 4
+MOV AL, 0x05
+KEI 0x01
+MOV AL, 0x01
+MOV AH, 0x0A
+KEI 0x01
+KEI 0x02
+";
+            CompileAndRun(source);
+            Assert.Equal("7\n7\n42\n5\nHalting!\n", _console.Output);
+        }
     }
 }
