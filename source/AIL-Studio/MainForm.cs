@@ -41,7 +41,10 @@ namespace AIL_Studio
         private SplitContainer _split     = null!;
         private LineNumberPanel _lineNums = null!;
         private CodeEditor   _editor      = null!;
+        private Panel        _outputPanel = null!;
         private RichTextBox  _output      = null!;
+        private Button       _undockBtn   = null!;
+        private ToolTip      _undockTip   = null!;
         private StatusStrip  _status      = null!;
         private ToolStripStatusLabel _statusFile  = null!;
         private ToolStripStatusLabel _statusPos   = null!;
@@ -52,6 +55,7 @@ namespace AIL_Studio
         private bool    _highlighting = false;
         private byte[]  _lastBuild   = Array.Empty<byte>();
         private System.Windows.Forms.Timer _highlightTimer = null!;
+        private Form?   _consoleDockForm;
 
         // ── Construction ─────────────────────────────────────────────────────
 
@@ -95,6 +99,15 @@ namespace AIL_Studio
             var file  = AddMenu(_menu, "&File");
             AddItem(file, "&New",          "Ctrl+N", (_, _) => New());
             AddItem(file, "&Open…",        "Ctrl+O", (_, _) => Open());
+            file.DropDownItems.Add(new ToolStripSeparator());
+            var examples = new ToolStripMenuItem("Load E&xample")
+            {
+                ForeColor = Color.FromArgb(0xCC, 0xCC, 0xCC),
+                BackColor = Color.FromArgb(0x2D, 0x2D, 0x30),
+            };
+            AddItem(examples, "&Hello World",  "", (_, _) => LoadExample(ExampleHelloWorld));
+            AddItem(examples, "&Calculator",   "", (_, _) => LoadExample(ExampleCalculator));
+            file.DropDownItems.Add(examples);
             file.DropDownItems.Add(new ToolStripSeparator());
             AddItem(file, "&Save",         "Ctrl+S", (_, _) => Save());
             AddItem(file, "Save &As…",     "",       (_, _) => SaveAs());
@@ -161,6 +174,8 @@ namespace AIL_Studio
             {
                 child.ForeColor = Color.FromArgb(0xCC, 0xCC, 0xCC);
                 child.BackColor = Color.FromArgb(0x2D, 0x2D, 0x30);
+                if (child is ToolStripMenuItem mi)
+                    StyleDropDown(mi);
             }
         }
 
@@ -278,17 +293,46 @@ namespace AIL_Studio
             _split.Panel1.Controls.Add(editorPanel);
 
             // ── Output panel ──────────────────────────────────────────────────
-            var outputPanel = new Panel { Dock = DockStyle.Fill, BackColor = CSidebar };
-            var outputLabel = new Label
+            _outputPanel = new Panel { Dock = DockStyle.Fill, BackColor = CSidebar };
+
+            var headerPanel = new Panel
             {
-                Text      = "  Output",
                 Dock      = DockStyle.Top,
                 Height    = 22,
                 BackColor = CToolbar,
+            };
+            var outputLabel = new Label
+            {
+                Text      = "  Output",
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
                 ForeColor = Color.FromArgb(0xAA, 0xAA, 0xAA),
                 Font      = new Font("Segoe UI", 8.5f, FontStyle.Regular),
                 TextAlign = ContentAlignment.MiddleLeft,
             };
+            _undockBtn = new Button
+            {
+                Text      = "⊡",
+                Dock      = DockStyle.Right,
+                Width     = 26,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = CToolbar,
+                ForeColor = Color.FromArgb(0xAA, 0xAA, 0xAA),
+                Cursor    = Cursors.Hand,
+                Font      = new Font("Segoe UI", 8f, FontStyle.Regular),
+                TabStop   = false,
+                UseVisualStyleBackColor = false,
+            };
+            _undockBtn.FlatAppearance.BorderSize       = 0;
+            _undockBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(0x3F, 0x3F, 0x46);
+            _undockBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(0x00, 0x7A, 0xCC);
+            _undockBtn.Click += (_, _) => ToggleConsoleDock();
+
+            _undockTip = new ToolTip();
+            _undockTip.SetToolTip(_undockBtn, "Pop out to separate window");
+
+            headerPanel.Controls.Add(outputLabel);
+            headerPanel.Controls.Add(_undockBtn);
 
             _output = new RichTextBox
             {
@@ -303,9 +347,9 @@ namespace AIL_Studio
                 ScrollBars  = RichTextBoxScrollBars.Both,
             };
 
-            outputPanel.Controls.Add(_output);
-            outputPanel.Controls.Add(outputLabel);
-            _split.Panel2.Controls.Add(outputPanel);
+            _outputPanel.Controls.Add(_output);
+            _outputPanel.Controls.Add(headerPanel);
+            _split.Panel2.Controls.Add(_outputPanel);
             _split.SplitterDistance = 480;
 
             Controls.Add(_split);
@@ -593,7 +637,219 @@ namespace AIL_Studio
             }
         }
 
-        // ── Syntax highlighting ───────────────────────────────────────────────
+        // ── Console undocking ─────────────────────────────────────────────────
+
+        private void ToggleConsoleDock()
+        {
+            if (_consoleDockForm == null)
+                UndockConsole();
+            else
+                ReDockConsole();
+        }
+
+        private void UndockConsole()
+        {
+            _split.Panel2.Controls.Remove(_outputPanel);
+            _split.Panel2Collapsed = true;
+
+            var f = new Form
+            {
+                Text            = "AIL Studio – Console",
+                Size            = new Size(700, 380),
+                MinimumSize     = new Size(300, 200),
+                StartPosition   = FormStartPosition.Manual,
+                BackColor       = Color.FromArgb(0x1E, 0x1E, 0x1E),
+                ForeColor       = Color.FromArgb(0xCC, 0xCC, 0xCC),
+                Font            = new Font("Segoe UI", 9f, FontStyle.Regular),
+            };
+            f.Location = new Point(Right + 4, Top);
+            // Keep the window within the working area of the current screen
+            var wa = Screen.FromHandle(Handle).WorkingArea;
+            int fx = Math.Min(f.Left, wa.Right  - f.Width);
+            int fy = Math.Min(f.Top,  wa.Bottom - f.Height);
+            f.Location = new Point(Math.Max(fx, wa.Left), Math.Max(fy, wa.Top));
+            _outputPanel.Dock = DockStyle.Fill;
+            f.Controls.Add(_outputPanel);
+
+            _consoleDockForm = f;
+            _undockBtn.Text = "⊞";
+            _undockTip.SetToolTip(_undockBtn, "Dock back to main window");
+
+            f.FormClosing += (_, _) =>
+            {
+                if (_consoleDockForm != f) return;
+                if (IsDisposed || Disposing || _split.IsDisposed) return;
+                _consoleDockForm = null;
+                if (f.Controls.Contains(_outputPanel))
+                    f.Controls.Remove(_outputPanel);
+                _outputPanel.Dock = DockStyle.Fill;
+                _split.Panel2.Controls.Add(_outputPanel);
+                _split.Panel2Collapsed = false;
+                _undockBtn.Text = "⊡";
+                _undockTip.SetToolTip(_undockBtn, "Pop out to separate window");
+            };
+
+            f.Show(this);
+        }
+
+        private void ReDockConsole()
+        {
+            _consoleDockForm?.Close();   // FormClosing handler does the actual redock
+        }
+
+        // ── Load example ──────────────────────────────────────────────────────
+
+        private void LoadExample(string content)
+        {
+            if (!ConfirmDiscard()) return;
+            _filePath  = string.Empty;
+            _lastBuild = Array.Empty<byte>();
+            ClearOutput();
+            _editor.Text = content;
+            _modified = false;
+            SetTitle();
+            _highlightTimer.Stop();
+            ApplySyntaxHighlighting();
+        }
+
+        private static readonly string ExampleHelloWorld =
+@"; hello_world_db.ail
+; Demonstrates the DB pseudo-instruction (like the x86 `db` directive).
+; The string ""Hello, World"" is defined inline in the source; the program
+; then prints it using KEI 0x01 in write-string mode.
+
+        JMP     main            ; skip over data section
+
+; ── Data section ──────────────────────────────────────────────────────────────
+hello:
+        DB      ""Hello, World"", 0x0A, 0x00   ; 14 bytes: text + newline + null
+
+; ── Code section ──────────────────────────────────────────────────────────────
+main:
+        MOV     AL, 0x02        ; KEI 0x01 mode: write string from memory
+        MOV     X, hello        ; X = address of string data
+        MOV     BL, 13          ; BL = length of string (13 bytes)
+        KEI     0x01            ; write string to stdout
+        KEI     0x02            ; halt
+";
+
+        private static readonly string ExampleCalculator =
+@"; calculator.ail
+; Simple integer calculator demonstrating AIL arithmetic.
+; Each block prints   A op B = result
+; using KEI 0x01 (write-char / write-integer) interrupts.
+;
+; KEI 0x01 modes used:
+;   AL = 0x01  write a single character (value in AH)
+;   AL = 0x05  write register B as a decimal integer
+
+; ── 3 + 4 = 7 ────────────────────────────────────────────────────────────────
+        MOV     AL, 0x01
+        MOV     AH, '3'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '+'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '4'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '='
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     BL, 3
+        ADD     BL, 4           ; BL = 7
+        MOV     AL, 0x05
+        KEI     0x01            ; print ""7""
+        MOV     AL, 0x01
+        MOV     AH, 0x0A        ; newline
+        KEI     0x01
+
+; ── 10 - 3 = 7 ───────────────────────────────────────────────────────────────
+        MOV     AH, '1'
+        KEI     0x01
+        MOV     AH, '0'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '-'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '3'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '='
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     BL, 10
+        SUB     BL, 3           ; BL = 7
+        MOV     AL, 0x05
+        KEI     0x01            ; print ""7""
+        MOV     AL, 0x01
+        MOV     AH, 0x0A
+        KEI     0x01
+
+; ── 6 * 7 = 42 ───────────────────────────────────────────────────────────────
+        MOV     AH, '6'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '*'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '7'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '='
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     BL, 6
+        MUL     BL, 7           ; BL = 42
+        MOV     AL, 0x05
+        KEI     0x01            ; print ""42""
+        MOV     AL, 0x01
+        MOV     AH, 0x0A
+        KEI     0x01
+
+; ── 20 / 4 = 5 ───────────────────────────────────────────────────────────────
+        MOV     AH, '2'
+        KEI     0x01
+        MOV     AH, '0'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '/'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '4'
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     AH, '='
+        KEI     0x01
+        MOV     AH, ' '
+        KEI     0x01
+        MOV     BL, 20
+        DIV     BL, 4           ; BL = 5
+        MOV     AL, 0x05
+        KEI     0x01            ; print ""5""
+        MOV     AL, 0x01
+        MOV     AH, 0x0A
+        KEI     0x01
+
+        KEI     0x02            ; halt
+";
 
         // Known mnemonics for colouring
         private static readonly string[] Mnemonics =
