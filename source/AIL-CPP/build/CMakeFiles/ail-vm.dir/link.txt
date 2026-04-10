@@ -1,0 +1,2 @@
+/usr/bin/ar qc libail-vm.a "CMakeFiles/ail-vm.dir/src/vm/ram.cpp.o" "CMakeFiles/ail-vm.dir/src/vm/call_stack.cpp.o" "CMakeFiles/ail-vm.dir/src/vm/vm.cpp.o" "CMakeFiles/ail-vm.dir/src/vm/vm_ops.cpp.o" "CMakeFiles/ail-vm.dir/src/vm/kernel_interrupts.cpp.o" "CMakeFiles/ail-vm.dir/src/vm/software_interrupts.cpp.o" "CMakeFiles/ail-vm.dir/src/executable.cpp.o"
+/usr/bin/ranlib libail-vm.a

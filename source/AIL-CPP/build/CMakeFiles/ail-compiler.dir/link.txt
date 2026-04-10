@@ -1,0 +1,2 @@
+/usr/bin/ar qc libail-compiler.a "CMakeFiles/ail-compiler.dir/src/compiler/instruction.cpp.o" "CMakeFiles/ail-compiler.dir/src/compiler/compiler.cpp.o"
+/usr/bin/ranlib libail-compiler.a
