@@ -17,7 +17,7 @@ For the full language and VM specification, standard library reference, and inst
 | `/source/AIL-Studio` | WinForms IDE with assembler, decompiler, and step debugger (net8.0-windows) |
 | `/source/AIL-Tests` | xUnit test suite |
 | `/wiki` | Mirror of the GitHub Wiki pages |
-| `/docs` | Original reference documents |
+| `/LICENSES` | License texts for this project and its FOSS dependencies |
 | `/examples` | Sample `.ail` assembly programs |
 
 ---
@@ -65,4 +65,4 @@ Open any `.ail` file in AIL Studio to assemble, run, and step-debug it interacti
 
 ## License
 
-This project is released under the terms of the [LICENSE](LICENSE) file in this repository.
+This project is released under the [Clear BSD License](LICENSE). License texts for all FOSS dependencies (xUnit, .NET SDK) are collected in the [`LICENSES/`](LICENSES/) directory.

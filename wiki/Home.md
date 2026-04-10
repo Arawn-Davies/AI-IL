@@ -6,7 +6,10 @@ Welcome to the AIL wiki. This wiki is the normative reference for the Artemis In
 
 | Page | Description |
 |------|-------------|
-| [[Specification]] | Architecture & instruction set specification (v2.0) |
+| [[Specification]] | AIL v2.0 specification overview and table of contents |
+| [[Spec-Architecture]] | Memory model, instruction encoding, registers, and the stack (§1–§4) |
+| [[Spec-Instructions]] | Program flow, full instruction reference, and opcode quick-reference table (§5–§7) |
+| [[Spec-Executable-Format]] | Binary `.ila` executable file format (§8) |
 | [[Standard-Library]] | Kernel and software interrupt reference |
 
 ## What is AIL?
@@ -28,6 +31,13 @@ The Artemis Intermediate Language (AIL) is a low-level, register-based intermedi
 /wiki     — this wiki (mirror kept in the repo)
 /examples — sample .ail assembly programs
 ```
+
+| Project | Description |
+|---------|-------------|
+| `source/Artemis-VM` | Core VM library — netstandard2.0, usable from any .NET host |
+| `source/AIL-Runtime` | Command-line runtime — load and execute `.ila` files or raw bytecode |
+| `source/AIL-Studio` | WinForms IDE — assembler, decompiler, and step-through debugger (Windows only) |
+| `source/AIL-Tests` | xUnit test suite covering the VM, assembler, and decompiler |
 
 ## Getting started
 
@@ -67,3 +77,21 @@ Alternatively, assemble with AIL Studio and then pass the output `.ila` file to 
 ```sh
 dotnet run --project source/AIL-Runtime -- myprogram.ila
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Source code
+
+Source code is kept in the `/source/` folder. The `/wiki/` folder in this repository is a mirror of the wiki pages.
+
