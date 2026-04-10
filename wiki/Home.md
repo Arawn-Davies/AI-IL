@@ -6,7 +6,10 @@ Welcome to the AIL wiki. This wiki is the normative reference for the Artemis In
 
 | Page | Description |
 |------|-------------|
-| [[Specification]] | Architecture & instruction set specification (v2.0) |
+| [[Specification]] | AIL v2.0 specification overview and table of contents |
+| [[Spec-Architecture]] | Memory model, instruction encoding, registers, and the stack (§1–§4) |
+| [[Spec-Instructions]] | Program flow, full instruction reference, and opcode quick-reference table (§5–§7) |
+| [[Spec-Executable-Format]] | Binary `.ila` executable file format (§8) |
 | [[Standard-Library]] | Kernel and software interrupt reference |
 
 ## What is AIL?
